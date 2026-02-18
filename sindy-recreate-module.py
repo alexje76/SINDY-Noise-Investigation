@@ -18,16 +18,23 @@ def library_function(X, n, **kwargs):
   rows_X, cols_X = X.shape
 
   # listing the polynomial features in library
-  variables = np.arange(1, cols_X+1)
-  variables = np.concatenate((1,variables)) 
+  variables = np.arange(1, cols_X+1).astype(str)
+  print("Variables: ", variables) #Debugging
 
-  polynomials_list = itertools.combinations_with_replacement(variables, n)
+  polynomials_list = [combo for r in range(1, n + 1) for combo in itertools.combinations_with_replacement(variables, r)]
   print("Polynomials list: ", list(polynomials_list)) #Debugging
 
-  Theta_no_ones = np.zeros((rows_X, len(list(polynomials_list))))
+  Theta_no_ones = np.zeros((rows_X, len(polynomials_list)))
+  #print("Theta_no_ones shape: ", Theta_no_ones.shape) #Debugging
 
-  #for i, poly in enumerate(list(polynomials_list)):
-    
+  for i, poly in enumerate(list(polynomials_list)):
+      #Convert strings to 0-based integer indices
+      indices = [int(s) - 1 for s in poly]
+      ##print(f"Processing polynomial: {poly}, indices: {indices}") #Debugging
+      #select the columns of X corresponding to the current polynomial feature and compute their product
+      Theta_no_ones[:, i] = np.prod(X[:, indices], axis=1) 
+  
+  ##print("Theta_no_ones shape: ", Theta_no_ones.shape) #Debugging
 
   Theta = np.concatenate((np.ones((rows_X, 1)), Theta_no_ones), axis=1)
 
@@ -38,7 +45,7 @@ def library_function(X, n, **kwargs):
   return Theta
 
 def test_x():
-  X = np.array([[1, 2], [3, 4], [5, 6]])
+  X = np.array([[1, 2,8], [3, 4,9], [5, 6,10]])
   return X
 #CLasses
 class PlaceholderClass:
@@ -47,5 +54,6 @@ class PlaceholderClass:
 #Runtime info
 if __name__ == '__main__': 
     testXx = test_x()
-    library_function(testXx, 2, print=True)
+    print("Test X: ", testXx)
+    library_function(testXx, 3, print=True)
 
