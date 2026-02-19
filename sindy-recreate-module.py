@@ -3,6 +3,7 @@ Module that contains all the functions we need for our project.
 """
 #IMPORTS
 import numpy as np
+import itertools
 
 #FUNCTIONS
 def placeholder_function():
@@ -14,7 +15,6 @@ def library_function(X, n, **kwargs):
   Returns Theta, the library which is  a matrix of shape rows: time steps, cols: number of features in the library
   **kwargs includes print: if True, it will print the shape of Theta and the Theta matrix itself.
   """
-  import itertools
 
   rows_X, cols_X = X.shape
   # listing the polynomial features in library
