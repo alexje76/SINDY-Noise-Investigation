@@ -3,19 +3,30 @@ Module that contains all the functions we need for our project.
 """
 
 # IMPORTS
+import itertools
+from typing import TypeAlias, Any, Callable, ParamSpec, Concatenate
+from collections.abc import Sequence
 import numpy as np
+import numpy.random as npr
 import numpy.typing as npt
 from scipy import integrate as intg
 import matplotlib.pyplot as plt
-import pynumdiff as nd # some submodules requrie cvxpy or tqdm
+import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
-import itertools
+
+
+# TYPING
+FloatArr: TypeAlias = npt.NDArray[np.floating]
+
+P = ParamSpec("P")
+DiffFun: TypeAlias = Callable[
+    Concatenate[float | None, FloatArr, P],
+    FloatArr,
+]
 
 
 # FUNCTIONS
-def generate_gaussian_noise(
-    std: float, shape: tuple[int, ...]
-) -> npt.NDArray[np.float64]:
+def generate_gaussian_noise(std: float, shape: tuple[int, ...]) -> FloatArr:
     """Generate numpy array of Gaussian noise with specified std and array size.
 
     Parameters
@@ -30,20 +41,22 @@ def generate_gaussian_noise(
     noise : ndarray
         Gaussian noise array, shape given by argument.
     """
-    rng = np.random.default_rng()
-    noise = rng.normal(scale=std, size=shape)
+    rng: npr.Generator = npr.default_rng()
+    noise: FloatArr = rng.normal(scale=std, size=shape)
     return noise
-  
 
-def lorenz(t, xyz, *, sigma=10, rho=28, beta=8 / 3):
+
+def lorenz(
+    _: Any, xyz: FloatArr, *, sigma: float = 10, rho: float = 28, beta: float = 8 / 3
+) -> FloatArr:
     """Find time derivative of Lorenz attractor at given coordinates x, y, z.
 
     Parameters
     ----------
-    t : any
+    _ : any
         Placeholder for syntax compatibility with scipy.integrate.solve_ivp().
     xyz : array-like, shape (3, n)
-        n coordinate vectors.
+        Array containing n 3D vectors.
     sigma : float
         Prandtl number.
     rho : float
@@ -54,48 +67,64 @@ def lorenz(t, xyz, *, sigma=10, rho=28, beta=8 / 3):
     Returns
     -------
     xyz_dot : array, shape (3, n)
-        Time derivatives of x, y, z at the n coordinate vectors.
+        Time derivatives of x, y, z at the n vectors in xyz.
     """
+    is_3_by_n: bool = xyz.ndim == 2 and xyz.shape[0] == 3
+    if not is_3_by_n:
+        raise ValueError("Expected array xyz to be 3-by-n.")
+
+    x: FloatArr
+    y: FloatArr
+    z: FloatArr
     x, y, z = xyz
-    x_dot = sigma * (y - x)
-    y_dot = x * (rho - z) - y
-    z_dot = x * y - beta * z
-    xyz_dot = np.array([x_dot, y_dot, z_dot])
+    x_dot: FloatArr = sigma * (y - x)
+    y_dot: FloatArr = x * (rho - z) - y
+    z_dot: FloatArr = x * y - beta * z
+    xyz_dot: FloatArr = np.array([x_dot, y_dot, z_dot])
     return xyz_dot
-  
-  
-def integrate_ode(x_dot_fun, x_0, t_arr, *, args=None, **options):
-  """Wrapper of scipy.integrate.solve_ivp() with simpler call signature and output.
-
-  Parameters
-  ----------
-  x_dot_fun : function
-      Time derivative of x, with call signature f(t, x, *args).
-  x_0 : array-like, shape (n,)
-      Initial value of x.
-  t_arr : array-like, shape (n_points,)
-      Array of points at which x is evaluated.
-  args : tuple, optional
-      Extra arguments for x_dot_fun, by default None.
-  **options
-      Options passed to scipy.integrate.solve_ivp().
-
-  Returns
-  -------
-  x : ndarray, shape (n, n_points)
-      x evaluated at points specified by t_arr.
-  """
-  t_span = t_arr[[0, -1]]
-  solution = intg.solve_ivp(
-      x_dot_fun, t_span, x_0, t_eval=t_arr, args=args, **options
-  )
-  x = solution.y
-  return x
 
 
-def denoise(x_list, dt, *, filter_order=4, cutoff_freq=0.025, **options):
+def integrate_ode(
+    x_dot_fun: DiffFun, x_0: FloatArr, t_arr: FloatArr, *, args: tuple = (), **options
+) -> FloatArr:
+    """Wrapper of scipy.integrate.solve_ivp() with simpler call signature and output. Only supports real variables.
+
+    Parameters
+    ----------
+    x_dot_fun : function
+        Time derivative of x, with call signature f(t, x, *args).
+    x_0 : ndarray, shape (n,)
+        Initial value of x.
+    t_arr : ndarray, shape (n_points,)
+        Array of points at which x is evaluated.
+    args : tuple, optional
+        Extra arguments for x_dot_fun, by default None.
+    **options
+        Options passed to scipy.integrate.solve_ivp().
+
+    Returns
+    -------
+    x : ndarray, shape (n, n_points)
+        x evaluated at points specified by t_arr.
+    """
+    t_span: Sequence[float] = t_arr[[0, -1]].tolist()
+    solution = intg.solve_ivp(
+        x_dot_fun, t_span, x_0, t_eval=t_arr, args=args, **options
+    )
+    x: FloatArr = solution.y.real
+    return x
+
+
+def denoise(
+    x_list: FloatArr,
+    dt: float,
+    *,
+    filter_order: int = 4,
+    cutoff_freq: float = 0.025,
+    **options
+) -> tuple[FloatArr, FloatArr]:
     """Denoise a list of one-dimensional arrays of data measured at fixed time interval. Then take time derivative of each array.
-    
+
     The arrays in a list are typically the components of a vector.
 
     Parameters
@@ -115,14 +144,16 @@ def denoise(x_list, dt, *, filter_order=4, cutoff_freq=0.025, **options):
         Denoised data.
     x_dot_denoised_list : ndarray, shape (n, num_steps)
         Time derivative of denoised data.
-    """    
+    """
     options["filter_order"] = filter_order
     options["cutoff_freq"] = cutoff_freq
 
-    x_denoised_list = np.zeros_like(x_list)
-    x_dot_denoised_list = np.zeros_like(x_list)
+    x_denoised_list: FloatArr = np.zeros_like(x_list)
+    x_dot_denoised_list: FloatArr = np.zeros_like(x_list)
     for n in range(len(x_list)):
-        x = x_list[n, :]
+        x: FloatArr = x_list[n, :]
+        x_denoised: FloatArr
+        x_dot_denoised: FloatArr
         x_denoised, x_dot_denoised = smoothfd.butterdiff(x, dt, **options)
         x_denoised_list[n, :] = x_denoised
         x_dot_denoised_list[n, :] = x_dot_denoised
@@ -169,28 +200,39 @@ def test_x():
     return X
 
 
-# CLasses
+# CLASSES
 class Trajectory:
-    def __init__(self, x_dot_fun, x_0, dt, num_steps, noise_std=0.0):
-        self.x_dot_fun = x_dot_fun
-        self.x_0 = x_0
-        
-        self.dt = dt
-        self.num_steps = num_steps
-        self.t_end = self.dt * self.num_steps
-        self.t_arr = np.linspace(0, self.t_end, self.num_steps + 1)
-        
-        self.x = integrate_ode(self.x_dot_fun, self.x_0, self.t_arr)
-        self.x_dot = self.x_dot_fun(None, self.x)
-        self.shape = np.shape(self.x)
-        
-        self.noise_std = noise_std
+    def __init__(
+        self,
+        x_dot_fun: DiffFun,
+        x_0: FloatArr,
+        dt: float,
+        num_steps: int,
+        noise_std: float = 0,
+    ) -> None:
+        self.x_dot_fun: DiffFun = x_dot_fun
+        self.x_0: FloatArr = x_0
+
+        self.dt: float = dt
+        self.num_steps: int = num_steps
+        self.t_end: float = self.dt * self.num_steps
+        self.t_arr: FloatArr = np.linspace(0, self.t_end, self.num_steps + 1)
+
+        self.x: FloatArr = integrate_ode(self.x_dot_fun, self.x_0, self.t_arr)
+        self.x_dot: FloatArr = self.x_dot_fun(None, self.x)
+        self.shape: tuple[int, int] = np.shape(self.x)
+
+        self.noise_std: float = noise_std
+        self.x_noisy: FloatArr
+        self.x_denoised: FloatArr
+        self.x_dot_denoised: FloatArr
         if self.noise_std == 0:
             self.x_noisy = self.x
+            self.x_denoised = self.x
+            self.x_dot_denoised = self.x_dot
         else:
             self.x_noisy = self.x + generate_gaussian_noise(self.noise_std, self.shape)
-            
-        self.x_denoised, self.x_dot_denoised = denoise(self.x_noisy, self.dt)
+            self.x_denoised, self.x_dot_denoised = denoise(self.x_noisy, self.dt)
 
 
 # Runtime info
