@@ -151,15 +151,11 @@ def denoise(
     options["filter_order"] = filter_order
     options["cutoff_freq"] = cutoff_freq
 
-    x_denoised_list: FloatArr = np.zeros_like(x_list)
-    x_dot_denoised_list: FloatArr = np.zeros_like(x_list)
-    for n in range(len(x_list)):
-        x: FloatArr = x_list[n, :]
-        x_denoised: FloatArr
-        x_dot_denoised: FloatArr
-        x_denoised, x_dot_denoised = smoothfd.butterdiff(x, dt, **options)
-        x_denoised_list[n, :] = x_denoised
-        x_dot_denoised_list[n, :] = x_dot_denoised
+    x_denoised_list: FloatArr
+    x_dot_denoised_list: FloatArr
+    x_denoised_list, x_dot_denoised_list = map(
+        np.array, zip(*[smoothfd.butterdiff(x, dt, **options) for x in x_list])
+    )
 
     return x_denoised_list, x_dot_denoised_list
 
