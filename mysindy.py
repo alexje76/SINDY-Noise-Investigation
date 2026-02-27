@@ -69,9 +69,12 @@ def lorenz(
     xyz_dot : array, shape (3, n)
         Time derivatives of x, y, z at the n vectors in xyz.
     """
-    is_3_by_n: bool = xyz.ndim == 2 and xyz.shape[0] == 3
+    is_3_by_n: bool = xyz.ndim <= 2 and xyz.shape[0] == 3
     if not is_3_by_n:
-        raise ValueError("Expected array xyz to be 3-by-n.")
+        raise ValueError(
+            "Expected array xyz to be 3-by-n, but: "
+            + f"xyz.ndim is {xyz.ndim}; xyz.shape is {xyz.shape}."
+        )
 
     x: FloatArr
     y: FloatArr
