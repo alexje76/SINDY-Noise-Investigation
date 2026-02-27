@@ -72,8 +72,7 @@ def lorenz(
     is_3_by_n: bool = xyz.ndim <= 2 and xyz.shape[0] == 3
     if not is_3_by_n:
         raise ValueError(
-            "Expected array xyz to be 3-by-n, but: "
-            + f"xyz.ndim is {xyz.ndim}; xyz.shape is {xyz.shape}."
+            f"Expected xyz.shape to be (3,) or (3, n), but it is {xyz.shape}."
         )
 
     x: FloatArr
