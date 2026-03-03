@@ -6,11 +6,15 @@ Module that contains all the functions we need for our project.
 import itertools
 from typing import TypeAlias, Any, Callable, ParamSpec, Concatenate
 from collections.abc import Sequence
+
 import numpy as np
 import numpy.random as npr
 import numpy.typing as npt
+
 from scipy import integrate as intg
+
 import matplotlib.pyplot as plt
+
 import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
 
@@ -122,8 +126,8 @@ def denoise(
     dt: float,
     *,
     filter_order: int = 4,
-    cutoff_freq: float = 0.025,
-    **options
+    butterworth_cutoff: float = 0.025,
+    **options,
 ) -> tuple[FloatArr, FloatArr]:
     """Denoise a list of one-dimensional arrays of data measured at fixed time interval. Then take time derivative of each array.
 
@@ -137,7 +141,7 @@ def denoise(
         Time interval, aka step size.
     filter_order : int, optional
         Order of Butterworth filter, by default 4.
-    cutoff_freq : float, optional
+    butterworth_cutoff : float, optional
         Cutoff frequency of Butterworth filter, by default 0.025.
 
     Returns
@@ -148,7 +152,7 @@ def denoise(
         Time derivative of denoised data.
     """
     options["filter_order"] = filter_order
-    options["cutoff_freq"] = cutoff_freq
+    options["cutoff_freq"] = butterworth_cutoff
 
     x_denoised_list: FloatArr
     x_dot_denoised_list: FloatArr
@@ -207,7 +211,8 @@ class Trajectory:
         dt: float,
         num_steps: int,
         noise_std: float = 0,
-    ) -> None:
+        **denoise_options,
+    ):
         self.x_dot_fun: DiffFun = x_dot_fun
         self.x_0: FloatArr = x_0
 
@@ -230,7 +235,9 @@ class Trajectory:
             self.x_dot_denoised = self.x_dot
         else:
             self.x_noisy = self.x + generate_gaussian_noise(self.noise_std, self.shape)
-            self.x_denoised, self.x_dot_denoised = denoise(self.x_noisy, self.dt)
+            self.x_denoised, self.x_dot_denoised = denoise(
+                self.x_noisy, self.dt, **denoise_options
+            )
 
 
 # Runtime info
