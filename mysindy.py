@@ -247,8 +247,9 @@ def library_function(
 
     return Theta
 
+
 def lorenz_array(
-        Xi: FloatData,
+    Xi: FloatData,
 ) -> FloatData:
     """
     Return the Lorenz attractor array with the same shape as X, for MSE calculation.
@@ -266,24 +267,25 @@ def lorenz_array(
         #TODO: Perhpaps we want to adjust this to be transposed - but only if it would then match our custom sindy.
     """
 
-    n,m = Xi.shape
+    n, m = Xi.shape
 
-                                #x_dot, y_dot, z_dot
-    beta = 8/3
+    # x_dot, y_dot, z_dot
+    beta = 8 / 3
     sigma = 10
     rho = 28
-    classic_lorenz = np.array([
-                            [0, 0, 0],
-                            [-sigma, rho, 0],
-                            [sigma, -1, 0],
-                            [0, 0, -beta],
-                            [0, 0, 0],
-                            [0, 0, 1],
-                            [0, -1, 0]])
-    padded_lorenz = np.pad(classic_lorenz, ((0, n - 7), (0, m - 3)), mode='constant')
+    classic_lorenz = np.array(
+        [
+            [0, 0, 0],
+            [-sigma, rho, 0],
+            [sigma, -1, 0],
+            [0, 0, -beta],
+            [0, 0, 0],
+            [0, 0, 1],
+            [0, -1, 0],
+        ]
+    )
+    padded_lorenz = np.pad(classic_lorenz, ((0, n - 7), (0, m - 3)), mode="constant")
     return padded_lorenz
-
-    
 
 
 def test_x():
@@ -295,10 +297,9 @@ def test_x():
     X: np.ndarray , shape (3, 3)
         Hardcoded array for testing purposes.
     """
-    X = np.array([[1, 2, 8], 
-                  [3, 4, 9], 
-                  [5, 6, 10]])
+    X = np.array([[1, 2, 8], [3, 4, 9], [5, 6, 10]])
     return X
+
 
 def test_x_df():
     """
@@ -309,13 +310,11 @@ def test_x_df():
     X_df: pd.DataFrame
         hardcoded DataFrame with columns 'x1', 'x2', 'x3'.
     """
-    X = np.array([[1, 2, 8], 
-                  [3, 4, 9], 
-                  [5, 6, 10]])
-    
+    X = np.array([[1, 2, 8], [3, 4, 9], [5, 6, 10]])
+
     # Convert to DataFrame to trigger the 'if df' branch in your logic
-    X_df = pd.DataFrame(X, columns=['x1', 'x2', 'x3'])
-    
+    X_df = pd.DataFrame(X, columns=["x1", "x2", "x3"])
+
     return X_df
 
 
