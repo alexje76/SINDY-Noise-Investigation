@@ -10,6 +10,7 @@ import numpy as np
 import numpy.random as npr
 import numpy.typing as npt
 from scipy import integrate as intg
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
@@ -242,6 +243,44 @@ def library_function(
         print("Theta: ", Theta)
 
     return Theta
+
+def lorenz_array(
+        Xi: FloatData,
+) -> FloatData:
+    """
+    Return the Lorenz attractor array with the same shape as X, for MSE calculation.
+
+    Parameters
+    ----------
+    Xi : numpy array or pandas DataFrame, shape (m, d)
+        Given array to match size wise for MSE calculation, Xi
+
+    Returns
+    -------
+    FloatData
+        The Lorenz attractor array wih the same shape as Xi, for MSE calculation.
+
+        #TODO: Perhpaps we want to adjust this to be transposed - but only if it would then match our custom sindy.
+    """
+
+    n,m = Xi.shape
+
+                                #x_dot, y_dot, z_dot
+    beta = 8/3
+    sigma = 10
+    rho = 28
+    classic_lorenz = np.array([
+                            [0, 0, 0],
+                            [-sigma, rho, 0],
+                            [sigma, -1, 0],
+                            [0, 0, -beta],
+                            [0, 0, 0],
+                            [0, 0, 1],
+                            [0, -1, 0]])
+    padded_lorenz = np.pad(classic_lorenz, ((0, n - 7), (0, m - 3)), mode='constant')
+    return padded_lorenz
+
+    
 
 
 def test_x():
