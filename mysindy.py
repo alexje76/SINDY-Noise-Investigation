@@ -4,7 +4,7 @@ Module that contains all the functions we need for our project.
 
 # IMPORTS
 import itertools
-from typing import TypeAlias, Any, Callable, ParamSpec, Concatenate
+from typing import TypeAlias, Any, Callable, ParamSpec, Concatenate, Union
 from collections.abc import Sequence
 
 import numpy as np
@@ -12,15 +12,17 @@ import numpy.random as npr
 import numpy.typing as npt
 
 from scipy import integrate as intg
-
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
 import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
+import pandas as pd
 
 
 # TYPING
 FloatArr: TypeAlias = npt.NDArray[np.floating]
+FloatData = Union[np.ndarray, pd.DataFrame, pd.Series]
 
 P = ParamSpec("P")
 DiffFun: TypeAlias = Callable[
@@ -163,43 +165,158 @@ def denoise(
     return x_denoised_list, x_dot_denoised_list
 
 
-def library_function(X, n, **kwargs):
+def library_function(
+    X: FloatData,
+    n: int,
+    *,
+    df: bool = True,
+    Print: bool = False,
+    **options,
+) -> FloatData:
     """
-    Library function that takes matrix X, and n (the maximum degree of the polynomial features)
-    Returns Theta, the library which is  a matrix of shape rows: time steps, cols: number of features in the library
-    **kwargs includes print: if True, it will print the shape of Theta and the Theta matrix itself.
+    Construct a library of polynomial features up to degree n from input data X. optionally print the library and its shape.
+    If the input data is a pandas DataFrame, the output will also be a DataFrame with appropriate column names. Otherwise, the output will be a numpy array.
+
+    Parameters
+    ----------
+    X : numpy array or pandas DataFrame, shape (m, d)
+        The input data, where m is the number of samples and d is the number of features.
+    n : int
+        The maximum degree of the polynomial features in the library.
+        For example, if n=2, the library will include all monomials of degree 0, 1, and 2
+
+    **options
+        df : bool, optional
+            If True, will add headers to the printed Theta. By default True.
+
+        Print : bool, optional
+            If True, will print Theta and its shape. By default False.
+
+    Returns
+    -------
+    Theta: numpy array or pandas DataFrame, shape (m, num_features)
+        The library
     """
+    if df and not isinstance(X, pd.DataFrame):
+        raise ValueError("If df is True, X must be a pandas DataFrame.")
+    elif df:
+        # Get column names as the variables
+        variables = X.columns
 
-    rows_X, cols_X = X.shape
-    # listing the polynomial features in library
-    variables = np.arange(1, cols_X + 1).astype(str)
+        polynomials_list = [
+            combo
+            for r in range(1, n + 1)
+            for combo in itertools.combinations_with_replacement(variables, r)
+        ]
 
-    polynomials_list = [
-        combo
-        for r in range(1, n + 1)
-        for combo in itertools.combinations_with_replacement(variables, r)
-    ]
+        Theta_no_ones = pd.DataFrame(index=X.index)
+        for combo in polynomials_list:
+            # Create a name like 'Col1*Col2' or 'Col1^2'
+            name = "*".join(combo)
+            # Multiply the selected columns row-wise
+            Theta_no_ones[name] = X[list(combo)].prod(axis=1)
 
-    Theta_no_ones = np.zeros((rows_X, len(polynomials_list)))
+        # Add the intercept (ones) column at the start
+        Theta = Theta_no_ones.copy()
+        Theta.insert(0, "1", 1.0)
+    else:  # The numpy array case
 
-    for i, poly in enumerate(list(polynomials_list)):
-        # Convert strings to 0-based integer indices
-        indices = [int(s) - 1 for s in poly]
-        # select the columns of X corresponding to the current polynomial feature and compute their product
-        Theta_no_ones[:, i] = np.prod(X[:, indices], axis=1)
+        rows_X, cols_X = X.shape
+        # listing the polynomial features in library
+        variables = np.arange(1, cols_X + 1).astype(str)
 
-    Theta = np.concatenate((np.ones((rows_X, 1)), Theta_no_ones), axis=1)
+        polynomials_list = [
+            combo
+            for r in range(1, n + 1)
+            for combo in itertools.combinations_with_replacement(variables, r)
+        ]
 
-    if "print" in kwargs and kwargs["print"] == True:
+        Theta_no_ones = np.zeros((rows_X, len(polynomials_list)))
+
+        for i, poly in enumerate(list(polynomials_list)):
+            # Convert strings to 0-based integer indices
+            indices = [int(s) - 1 for s in poly]
+            # select the columns of X corresponding to the current polynomial feature and compute their product
+            Theta_no_ones[:, i] = np.prod(X[:, indices], axis=1)
+
+        Theta = np.concatenate((np.ones((rows_X, 1)), Theta_no_ones), axis=1)
+
+    if Print:
         print("Theta shape: ", Theta.shape)
         print("Theta: ", Theta)
 
     return Theta
 
+def lorenz_array(
+        Xi: FloatData,
+) -> FloatData:
+    """
+    Return the Lorenz attractor array with the same shape as X, for MSE calculation.
+
+    Parameters
+    ----------
+    Xi : numpy array or pandas DataFrame, shape (m, d)
+        Given array to match size wise for MSE calculation, Xi
+
+    Returns
+    -------
+    FloatData
+        The Lorenz attractor array wih the same shape as Xi, for MSE calculation.
+
+        #TODO: Perhpaps we want to adjust this to be transposed - but only if it would then match our custom sindy.
+    """
+
+    n,m = Xi.shape
+
+                                #x_dot, y_dot, z_dot
+    beta = 8/3
+    sigma = 10
+    rho = 28
+    classic_lorenz = np.array([
+                            [0, 0, 0],
+                            [-sigma, rho, 0],
+                            [sigma, -1, 0],
+                            [0, 0, -beta],
+                            [0, 0, 0],
+                            [0, 0, 1],
+                            [0, -1, 0]])
+    padded_lorenz = np.pad(classic_lorenz, ((0, n - 7), (0, m - 3)), mode='constant')
+    return padded_lorenz
+
+    
+
 
 def test_x():
-    X = np.array([[1, 2, 8], [3, 4, 9], [5, 6, 10]])
+    """
+    Simply returns a 3 by 3 array for testing purposes.
+
+    Returns
+    -------
+    X: np.ndarray , shape (3, 3)
+        Hardcoded array for testing purposes.
+    """
+    X = np.array([[1, 2, 8], 
+                  [3, 4, 9], 
+                  [5, 6, 10]])
     return X
+
+def test_x_df():
+    """
+    Returns a 3 by 3 pandas DataFrame for testing purposes.
+
+    Returns
+    -------
+    X_df: pd.DataFrame
+        hardcoded DataFrame with columns 'x1', 'x2', 'x3'.
+    """
+    X = np.array([[1, 2, 8], 
+                  [3, 4, 9], 
+                  [5, 6, 10]])
+    
+    # Convert to DataFrame to trigger the 'if df' branch in your logic
+    X_df = pd.DataFrame(X, columns=['x1', 'x2', 'x3'])
+    
+    return X_df
 
 
 # CLASSES
