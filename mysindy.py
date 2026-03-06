@@ -32,7 +32,9 @@ DiffFun: TypeAlias = Callable[
 
 
 # FUNCTIONS
-def generate_gaussian_noise(std: float, shape: tuple[int, ...]) -> FloatArr:
+def generate_gaussian_noise(
+    std: float, shape: tuple[int, ...], seed: int = 571
+) -> FloatArr:
     """Generate numpy array of Gaussian noise with specified std and array size.
 
     Parameters
@@ -47,7 +49,7 @@ def generate_gaussian_noise(std: float, shape: tuple[int, ...]) -> FloatArr:
     noise : ndarray
         Gaussian noise array, shape given by argument.
     """
-    rng: npr.Generator = npr.default_rng()
+    rng: npr.Generator = npr.default_rng(seed=seed)
     noise: FloatArr = rng.normal(scale=std, size=shape)
     return noise
 
