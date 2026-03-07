@@ -22,7 +22,7 @@ import pandas as pd
 
 # TYPING
 FloatArr: TypeAlias = npt.NDArray[np.floating]
-FloatData = Union[np.ndarray, pd.DataFrame, pd.Series]
+FloatData: TypeAlias = Union[FloatArr, pd.DataFrame, pd.Series]
 
 P = ParamSpec("P")
 DiffFun: TypeAlias = Callable[
