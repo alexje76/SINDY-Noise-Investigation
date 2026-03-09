@@ -19,6 +19,8 @@ import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
 import pandas as pd
 
+from systems import Hopf
+
 
 # TYPING
 FloatArr: TypeAlias = npt.NDArray[np.floating]
@@ -59,12 +61,15 @@ def lorenz(
 ) -> FloatArr:
     """Find time derivative of Lorenz attractor at given coordinates x, y, z.
 
+    Call signature is as expected by :func:`scipy.integrate.solve_ivp`
+    and related solvers. The time argument is accepted but unused.
+
     Parameters
     ----------
-    _ : any
-        Placeholder for syntax compatibility with scipy.integrate.solve_ivp().
-    xyz : array-like, shape (3, n)
-        Array containing n 3D vectors.
+    _ : Any
+        Placeholder for syntax compatibility.
+    xyz : FloatArr, shape (3, n)
+        Array containing ``n`` 3D vectors.
     sigma : float
         Prandtl number.
     rho : float
@@ -75,7 +80,8 @@ def lorenz(
     Returns
     -------
     xyz_dot : array, shape (3, n)
-        Time derivatives of x, y, z at the n vectors in xyz.
+        Time derivative :math:`(\\dot x, \\dot y, \\dot z)` at the ``n`` vectors in
+        ``xyz``.
     """
     is_3_by_n: bool = xyz.ndim <= 2 and xyz.shape[0] == 3
     if not is_3_by_n:
