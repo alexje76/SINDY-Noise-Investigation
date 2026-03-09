@@ -55,6 +55,19 @@ def generate_gaussian_noise(
     noise: FloatArr = rng.normal(scale=std, size=shape)
     return noise
 
+def lorenz_params() -> FloatArr:
+    """Return the parameters of the Lorenz attractor as a numpy array.
+
+    Returns
+    -------
+    params : ndarray, shape (3,)
+        The parameters of the Lorenz attractor: [sigma, rho, beta].
+    """
+    sigma: float = 10
+    rho: float = 28
+    beta: float = 8 / 3
+    params: FloatArr = np.array([sigma, rho, beta])
+    return params
 
 def lorenz(
     _: Any, xyz: FloatArr, *, sigma: float = 10, rho: float = 28, beta: float = 8 / 3
@@ -83,6 +96,9 @@ def lorenz(
         Time derivative :math:`(\\dot x, \\dot y, \\dot z)` at the ``n`` vectors in
         ``xyz``.
     """
+    lor_par = lorenz_params()
+    sigma, rho, beta = lor_par[0], lor_par[1], lor_par[2]
+
     is_3_by_n: bool = xyz.ndim <= 2 and xyz.shape[0] == 3
     if not is_3_by_n:
         raise ValueError(
@@ -278,9 +294,9 @@ def lorenz_array(
     n, m = Xi.shape
 
     # x_dot, y_dot, z_dot
-    beta = 8 / 3
-    sigma = 10
-    rho = 28
+    lor_par = lorenz_params()
+    sigma, rho, beta = lor_par[0], lor_par[1], lor_par[2]
+    
     classic_lorenz = np.array(
         [
             [0, 0, 0],
