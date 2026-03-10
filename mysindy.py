@@ -130,7 +130,7 @@ def integrate_ode(
     t_arr : ndarray, shape (n_points,)
         Array of points at which x is evaluated.
     args : tuple, optional
-        Extra arguments for x_dot_fun, by default None.
+        Extra arguments for x_dot_fun, by default an empty tuple.
     **options
         Options passed to scipy.integrate.solve_ivp().
 
