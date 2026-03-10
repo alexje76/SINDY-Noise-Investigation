@@ -80,6 +80,13 @@ class Hopf:
         self.bif_param: float = bif_param
         self.lyapunov: float = lyapunov
 
+    def __repr__(self) -> str:
+        return (
+            f"Hopf object {hex(id(self))}\n"
+            f"    Bifurcation parameter,       mu:  {self.bif_param}\n"
+            f"    First Lyapunov coefficient,  A:   {self.lyapunov}"
+        )
+
     @property
     def params(self) -> tuple[float, float]:
         """Return ``(bif_param, lyapunov)`` as a tuple.
