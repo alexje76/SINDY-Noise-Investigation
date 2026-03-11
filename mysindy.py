@@ -288,7 +288,53 @@ def library_function(
         print("Theta: ", Theta)
 
     return Theta
+def stls(
+    lib: FloatData,
+    x_dot: FloatArr,
+    threshold: float,
+    *,
+    max_iter: int = 100
+) -> FloatArr:
+    m, ell = lib.shape
+    n = x_dot.shape[1]
 
+    # Initial guess: Least-squares
+    sol = np.linalg.lstsq(lib, x_dot, rcond=None)[0]
+    mask = np.ones((ell, n), dtype=bool)
+
+    iter: int = 0
+    for iter in range(max_iter):
+        # Find small coefficients
+        mask_new = np.abs(sol) >= threshold
+        # Break if mask does not change between iterations
+        if np.array_equal(mask_new, mask):
+            # print(f"threshold: {threshold}")
+            # print()
+            # print(sol)
+            # print()
+            # print(mask_new)
+            break
+        mask = mask_new
+
+        sol[~mask] = 0  # and threshold
+        for k in range(n):
+            nonzero = mask[:, k]
+
+            # Skip update if all entries of sol are small
+            if not np.any(nonzero):
+                continue
+
+            sub_lib = lib[:, nonzero]
+            # If underdetermined, lstsq will use dense minimum-norm solution, so skip
+            if np.linalg.matrix_rank(sub_lib) < nonzero.sum():
+                continue
+
+            # Regress onto remaining terms
+            sol[nonzero, k] = np.linalg.lstsq(sub_lib, x_dot[:, k], rcond=None)[0]
+
+    print(f"Exited at {iter} iterations.")
+
+    return sol
 
 def lorenz_array(
     Xi: FloatData,
