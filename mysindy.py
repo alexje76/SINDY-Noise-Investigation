@@ -69,6 +69,24 @@ def lorenz_params() -> FloatArr:
     params: FloatArr = np.array([sigma, rho, beta])
     return params
 
+def lorenz_advance(ics, time_eval, dt): #TODO add docsring and typing
+    # Ensure time_chunks matches the expected count (e.g., 21 points for 0.02s)
+    num_steps = int(round(time_eval / dt)) + 1
+    time_chunks = np.linspace(0, time_eval, num_steps)
+    
+    # sol.y will be shape (3, 21)
+    sol = intg.solve_ivp(
+        lorenz,           # Your function
+        [0, time_eval],        # Time span
+        ics,                   # Initial conditions
+        t_eval=time_chunks,    # Specific points to return
+        method='RK45'
+    )
+    
+    # Transpose to (21, 3) to match your plotting logic
+    return sol.y.T
+
+
 def lorenz(
     _: Any, xyz: FloatArr, *, sigma: float = 10, rho: float = 28, beta: float = 8 / 3
 ) -> FloatArr:
