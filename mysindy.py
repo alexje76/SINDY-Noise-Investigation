@@ -19,8 +19,6 @@ import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
 from pynumdiff import smooth_finite_difference as smoothfd
 import pandas as pd
 
-from systems import Hopf
-
 
 # TYPING
 FloatArr: TypeAlias = npt.NDArray[np.floating]
@@ -404,44 +402,6 @@ def test_x_df():
     X_df = pd.DataFrame(X, columns=["x1", "x2", "x3"])
 
     return X_df
-
-
-# CLASSES
-class Trajectory:
-    def __init__(
-        self,
-        x_dot_fun: DiffFun,
-        x_0: FloatArr,
-        dt: float,
-        num_steps: int,
-        noise_std: float = 0,
-        **denoise_options,
-    ):
-        self.x_dot_fun: DiffFun = x_dot_fun
-        self.x_0: FloatArr = x_0
-
-        self.dt: float = dt
-        self.num_steps: int = num_steps
-        self.t_end: float = self.dt * self.num_steps
-        self.t_arr: FloatArr = np.linspace(0, self.t_end, self.num_steps + 1)
-
-        self.x: FloatArr = integrate_ode(self.x_dot_fun, self.x_0, self.t_arr)
-        self.x_dot: FloatArr = self.x_dot_fun(None, self.x)
-        self.shape: tuple[int, int] = np.shape(self.x)
-
-        self.noise_std: float = noise_std
-        self.x_noisy: FloatArr
-        self.x_denoised: FloatArr
-        self.x_dot_denoised: FloatArr
-        if self.noise_std == 0:
-            self.x_noisy = self.x
-            self.x_denoised = self.x
-            self.x_dot_denoised = self.x_dot
-        else:
-            self.x_noisy = self.x + generate_gaussian_noise(self.noise_std, self.shape)
-            self.x_denoised, self.x_dot_denoised = denoise(
-                self.x_noisy, self.dt, **denoise_options
-            )
 
 
 # Runtime info

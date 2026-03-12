@@ -5,6 +5,7 @@ import numpy.typing as npt
 from scipy import integrate as intg
 import pandas as pd
 
+import mysindy
 
 FloatArr: TypeAlias = npt.NDArray[np.floating]
 FloatData: TypeAlias = Union[FloatArr, pd.DataFrame, pd.Series]
@@ -14,6 +15,7 @@ DiffFun: TypeAlias = Callable[
     Concatenate[float | None, FloatArr, P],
     FloatArr,
 ]
+
 
 class HasShape(Protocol):
     """Protocol for array-like objects with properties ``ndim`` and ``shape``.
@@ -49,7 +51,46 @@ def validate_leading_dim(arr: HasShape, dim: int) -> None:
             f"but it is {arr.shape}."
         )
 
-    
+
+class Trajectory:
+    def __init__(
+        self,
+        x_dot_fun: DiffFun,
+        x_0: FloatArr,
+        dt: float,
+        num_steps: int,
+        noise_std: float = 0,
+        **denoise_options,
+    ):
+        self.x_dot_fun: DiffFun = x_dot_fun
+        self.x_0: FloatArr = x_0
+
+        self.dt: float = dt
+        self.num_steps: int = num_steps
+        self.t_end: float = self.dt * self.num_steps
+        self.t_arr: FloatArr = np.linspace(0, self.t_end, self.num_steps + 1)
+
+        self.x: FloatArr = mysindy.integrate_ode(self.x_dot_fun, self.x_0, self.t_arr)
+        self.x_dot: FloatArr = self.x_dot_fun(None, self.x)
+        self.shape: tuple[int, int] = np.shape(self.x)
+
+        self.noise_std: float = noise_std
+        self.x_noisy: FloatArr
+        self.x_denoised: FloatArr
+        self.x_dot_denoised: FloatArr
+        if self.noise_std == 0:
+            self.x_noisy = self.x
+            self.x_denoised = self.x
+            self.x_dot_denoised = self.x_dot
+        else:
+            self.x_noisy = self.x + mysindy.generate_gaussian_noise(
+                self.noise_std, self.shape
+            )
+            self.x_denoised, self.x_dot_denoised = mysindy.denoise(
+                self.x_noisy, self.dt, **denoise_options
+            )
+
+
 class Hopf:
     """Hopf normal form in Cartesian coordinates.
 
@@ -76,7 +117,19 @@ class Hopf:
         First Lyapunov coefficient :math:`A`.
     """
 
-    def __init__(self, bif_param: float = 1, lyapunov: float = 1):
+    def __init__(
+        self,
+        x_0: FloatArr,
+        dt: float,
+        num_steps: int,
+        noise_std: float = 0,
+        bif_param: float = 1,
+        lyapunov: float = 1,
+    ):
+        self.x_0 = x_0
+        self.dt = dt
+        self.num_steps = num_steps
+        self.noise_std: float = noise_std
         self.bif_param: float = bif_param
         self.lyapunov: float = lyapunov
 
@@ -97,6 +150,19 @@ class Hopf:
             The bifurcation parameter and the first Lyapunov coefficient.
         """
         return (self.bif_param, self.lyapunov)
+
+    @property
+    def traj(self) -> Trajectory:
+        trajectory = Trajectory(
+            self.diff_fun, self.x_0, self.dt, self.num_steps, self.noise_std
+        )
+        u = trajectory.x[2, :]
+        u_dot = trajectory.x_dot[2, :]
+
+        trajectory.x_noisy[2, :] = u
+        trajectory.x_denoised[2, :] = u
+        trajectory.x_dot_denoised[2, :] = u_dot
+        return trajectory
 
     def params_array(self, lib: FloatData) -> FloatArr:
         """Construct the ground-truth SINDy coefficient matrix :math:`\\Xi`.
