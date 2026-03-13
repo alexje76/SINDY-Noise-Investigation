@@ -60,7 +60,6 @@ class Trajectory:
         dt: float,
         num_steps: int,
         noise_std: float = 0,
-        **denoise_options,
     ):
         self.x_dot_fun: DiffFun = x_dot_fun
         self.x_0: FloatArr = x_0
@@ -87,7 +86,7 @@ class Trajectory:
                 self.noise_std, self.shape
             )
             self.x_denoised, self.x_dot_denoised = mysindy.denoise(
-                self.x_noisy, self.dt, **denoise_options
+                self.x_noisy, self.dt
             )
 
 
@@ -200,8 +199,8 @@ class Hopf:
         AssertionError
             If ``lib.shape[0] < 17`` or ``lib.shape[1] < 3``.
         """
-        n, m = lib.shape
-        assert n >= 17 and m >= 3
+        _, num_lib_cols = lib.shape
+        assert num_lib_cols >= 17
 
         arr = np.zeros((17, 3))
         arr[1, 1] = -1
@@ -209,7 +208,7 @@ class Hopf:
         arr[6, 0] = arr[8, 1] = self.bif_param
         arr[10, 0] = arr[11, 1] = arr[13, 0] = arr[16, 1] = -self.lyapunov
 
-        arr = np.pad(arr, ((0, n - 17), (0, m - 3)), mode="constant")
+        arr = np.pad(arr, ((0, num_lib_cols - 17), (0, 0)), mode="constant")
 
         return arr
 
