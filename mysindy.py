@@ -16,7 +16,7 @@ from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
 import pynumdiff as nd  # Some submodules requrie cvxpy or tqdm
-from pynumdiff import smooth_finite_difference as smoothfd
+from pynumdiff import basis_fit as basisfit
 import pandas as pd
 
 
@@ -166,9 +166,6 @@ def integrate_ode(
 def denoise(
     x_list: FloatArr,
     dt: float,
-    *,
-    filter_order: int = 4,
-    butterworth_cutoff: float = 0.025,
     **options,
 ) -> tuple[FloatArr, FloatArr]:
     """Denoise a list of one-dimensional arrays of data measured at fixed time interval. Then take time derivative of each array.
@@ -181,10 +178,6 @@ def denoise(
         A list of n one-dimensional arrays containing noisy data.
     dt : float
         Time interval, aka step size.
-    filter_order : int, optional
-        Order of Butterworth filter, by default 4.
-    butterworth_cutoff : float, optional
-        Cutoff frequency of Butterworth filter, by default 0.025.
 
     Returns
     -------
@@ -193,13 +186,15 @@ def denoise(
     x_dot_denoised_list : ndarray, shape (n, num_steps)
         Time derivative of denoised data.
     """
-    options["filter_order"] = filter_order
-    options["cutoff_freq"] = butterworth_cutoff
-
+    hparams: dict = {
+        "high_freq_cutoff": 15 * dt,
+        "even_extension": True,
+        "pad_to_zero_dxdt": False
+    }
     x_denoised_list: FloatArr
     x_dot_denoised_list: FloatArr
     x_denoised_list, x_dot_denoised_list = map(
-        np.array, zip(*[smoothfd.butterdiff(x, dt, **options) for x in x_list])
+        np.array, zip(*[basisfit.spectraldiff(x, dt, **hparams) for x in x_list])
     )
 
     return x_denoised_list, x_dot_denoised_list
